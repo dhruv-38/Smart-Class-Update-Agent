@@ -21,7 +21,7 @@ function DashboardView() {
 
   // State for calendar events
   const [calendarEvents, setCalendarEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(false); // Changed from true to false
   const [lastSyncTime, setLastSyncTime] = useState(null);
   
   // Stats for display
@@ -30,37 +30,6 @@ function DashboardView() {
     announcements: 0,
     totalEvents: 0
   });
-
-  // Fetch calendar events when component mounts
-  useEffect(() => {
-    fetchCalendarEvents();
-  }, []);
-
-  // Fetch calendar events from backend
-  const fetchCalendarEvents = async () => {
-    try {
-      setEventsLoading(true);
-      const response = await axios.get(`${BACKEND_URL}/list-calendar-events`);
-      
-      if (response.data && response.data.calendar_events) {
-        setCalendarEvents(response.data.calendar_events);
-        
-        // Update stats
-        if (response.data.stats) {
-          setStats({
-            assignments: response.data.stats.assignments || 0,
-            announcements: response.data.stats.announcements || 0,
-            totalEvents: response.data.stats.total_calendar_events || 0
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching calendar events:', error);
-      toast.error('Failed to fetch calendar events');
-    } finally {
-      setEventsLoading(false);
-    }
-  };
 
   // Handle Sync Now button click
   const handleSync = async () => {
@@ -114,60 +83,42 @@ function DashboardView() {
   // Handle calendar event deletion
   const handleDeleteEvent = async (eventId) => {
     try {
-      // Show loading indicator
-      toast.info('Deleting event...', { autoClose: 2000 });
-      
-      // Make the API call
       await axios.delete(`${BACKEND_URL}/calendar-event/${eventId}`);
       
       // Remove the deleted event from state
       setCalendarEvents(prev => prev.filter(event => event.id !== eventId));
+      toast.success('Event deleted successfully');
       
       // Update stats
       setStats(prev => ({
         ...prev,
         totalEvents: prev.totalEvents - 1
       }));
-      
-      // Show success message
-      toast.success('Event deleted successfully');
     } catch (error) {
       console.error('Error deleting event:', error);
-      
-      // Show a more detailed error message
-      const errorMessage = error.response?.data?.detail || 'Failed to delete event';
-      toast.error(`Error: ${errorMessage}`);
+      toast.error('Failed to delete event');
     }
   };
 
   // Handle adding a custom event
   const handleAddEvent = async (eventData) => {
     try {
-      // Show loading indicator
-      toast.info('Adding event...', { autoClose: 2000 });
-      
-      console.log('Sending event data:', eventData); // Debug log
-      
       const response = await axios.post(`${BACKEND_URL}/calendar-event`, eventData);
       
       if (response.data && response.data.id) {
         // Add the new event to state
         setCalendarEvents(prev => [...prev, response.data]);
+        toast.success('Event added successfully');
         
         // Update stats
         setStats(prev => ({
           ...prev,
           totalEvents: prev.totalEvents + 1
         }));
-        
-        toast.success('Event added successfully');
       }
     } catch (error) {
       console.error('Error adding event:', error);
-      
-      // Show a more detailed error message
-      const errorMessage = error.response?.data?.detail || 'Failed to add event';
-      toast.error(`Error: ${errorMessage}`);
+      toast.error('Failed to add event');
     }
   };
 
@@ -253,17 +204,12 @@ function DashboardView() {
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Calendar Events</h2>
         
-        {eventsLoading ? (
-          <div className="flex justify-center items-center p-12">
-            <LoadingSpinner message="Loading calendar events..." />
-          </div>
-        ) : (
-          <CalendarEventsList
-            events={calendarEvents}
-            onDeleteEvent={handleDeleteEvent}
-            onAddEvent={handleAddEvent}
-          />
-        )}
+        {/* Remove the conditional rendering based on eventsLoading */}
+        <CalendarEventsList
+          events={calendarEvents}
+          onDeleteEvent={handleDeleteEvent}
+          onAddEvent={handleAddEvent}
+        />
       </div>
     </div>
   );
