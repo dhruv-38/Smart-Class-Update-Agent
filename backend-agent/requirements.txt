@@ -1,8 +1,28 @@
+# FastAPI and related dependencies
 fastapi
 uvicorn
 starlette
+pydantic
+
+# Authentication and sessions
+python-multipart
+itsdangerous
+
+# Google API clients
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
-requests
 google-api-python-client
+
+# AI integration
+google-generativeai
+
+# Utility libraries
+pytz
+python-dotenv
+
+# CORS support
+fastapi-cors
+
+# HTTP client
+httpx
