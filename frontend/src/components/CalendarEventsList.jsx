@@ -25,9 +25,18 @@ function CalendarEventsList({ events, onDeleteEvent, onAddEvent }) {
       // All-day event
       return new Date(event.start.date).toLocaleDateString();
     } else if (event.start.dateTime) {
-      // Time-specific event
+      // Time-specific event - this is stored in UTC by the backend
       const date = new Date(event.start.dateTime);
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      
+      // This will automatically convert the UTC time to local time
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
     }
     
     return 'Invalid date';
@@ -60,9 +69,13 @@ function CalendarEventsList({ events, onDeleteEvent, onAddEvent }) {
       title: newEvent.title,
       description: newEvent.description || "",
       date: newEvent.date,
-      time: newEvent.time || null,
+      // Fix: Convert time to UTC time string (add time zone offset adjustment)
+      time: newEvent.time ? adjustTimeForBackend(newEvent.time) : null,
       type: 'custom'
     };
+    
+    // Debug message to show what's being sent
+    console.log("Sending event data to backend:", eventData);
     
     onAddEvent(eventData);
     
@@ -75,6 +88,61 @@ function CalendarEventsList({ events, onDeleteEvent, onAddEvent }) {
       type: 'custom',
     });
     setShowAddForm(false);
+  };
+
+  // Function to adjust time for backend (compensate for timezone offset)
+  const adjustTimeForBackend = (timeString) => {
+    // Parse the input time
+    const [hours, minutes] = timeString.split(':').map(Number);
+    
+    // Get timezone offset in minutes
+    const timezoneOffsetInMinutes = new Date().getTimezoneOffset();
+    
+    console.log(`Current timezone offset: ${timezoneOffsetInMinutes} minutes`);
+    
+    // For IST (UTC+5:30), getTimezoneOffset() returns -330 minutes
+    
+    // Extract the hour part and minute part of the offset separately
+    const offsetHours = Math.floor(Math.abs(timezoneOffsetInMinutes) / 60);
+    const offsetMinutes = Math.abs(timezoneOffsetInMinutes) % 60;
+    
+    // Determine whether to add or subtract based on the sign of the offset
+    // For negative offset (like IST), we need to subtract hours to get UTC
+    let utcHours, utcMinutes;
+    
+    if (timezoneOffsetInMinutes <= 0) {
+      // Timezone is ahead of UTC (like IST)
+      // Subtract hours and minutes to get UTC time
+      utcHours = hours - offsetHours;
+      utcMinutes = minutes - offsetMinutes;
+    } else {
+      // Timezone is behind UTC
+      // Add hours and minutes to get UTC time
+      utcHours = hours + offsetHours;
+      utcMinutes = minutes + offsetMinutes;
+    }
+    
+    // Handle minute underflow
+    if (utcMinutes < 0) {
+      utcHours--;
+      utcMinutes += 60;
+    }
+    
+    // Handle minute overflow
+    if (utcMinutes >= 60) {
+      utcHours++;
+      utcMinutes -= 60;
+    }
+    
+    // Handle hour underflow/overflow
+    utcHours = ((utcHours % 24) + 24) % 24;
+    
+    // Format as HH:MM
+    const formattedUtcTime = `${String(utcHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}`;
+    
+    console.log(`Original time (local): ${timeString}, Adjusted time (UTC for backend): ${formattedUtcTime}`);
+    
+    return formattedUtcTime;
   };
 
   return (
@@ -168,6 +236,10 @@ function CalendarEventsList({ events, onDeleteEvent, onAddEvent }) {
                   onChange={handleInputChange}
                 />
                 <p className="mt-1 text-xs text-gray-500">Format: HH:MM (24-hour)</p>
+                {/* Add a notice about time zones */}
+                <p className="mt-1 text-xs text-orange-500">
+                  The time you enter will be used directly. No time zone conversion needed.
+                </p>
               </div>
             </div>
             
